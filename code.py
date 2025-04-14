@@ -37,7 +37,7 @@ xtr = X_new_train_normal
 ytr = y_new_train_normal
 x = pd.concat([xtr, xte], axis=0)
 y = pd.concat([ytr, yte], axis=0)
-# X_train, Y_train, X_test, Y_test = xtr, ytr, xte, yte
+X_train, Y_train, X_test, Y_test = xtr, ytr, xte, yte
 X_new_train, y_new_train, X_new_test, y_new_test = xtr, ytr, xte, yte
 
 
@@ -70,7 +70,159 @@ classifiers = {
 }
 
 
+def xgbo(xtr, ytr):
+    def auc_score(model, X_test, y_test):
+        y_test_pred = model.predict_proba(X_test)[:, 1]
+        test_auc = roc_auc_score(y_test, y_test_pred)
+        #test_auc = model.score(X_test, y_test)
+        return test_auc
 
+    def acc_score(model, X_test, y_test):
+        test_accuracy = model.score(X_test, y_test)
+        return test_accuracy
+
+    def f1__score(model, X_test, y_test):
+        test_f1 = f1_score(y_test, model.predict(X_test))
+        return test_f1
+
+    xtr, xte, ytr, yte = train_test_split(xtr, ytr, test_size=0.2, random_state=666)
+
+    from xgboost import XGBClassifier
+    best_spw = 1
+
+
+    axisx = range(0, 500, 10)
+    rs = []
+    for i in axisx:
+        reg = XGBClassifier(n_estimators=i, random_state=420, eval_metric='auc', use_label_encoder=False,
+                            scale_pos_weight=best_spw).fit(xtr, ytr)
+        #     rs.append(cross_val_score(reg,xtr,ytr,cv=cv).mean())
+        rs.append(acc_score(reg, xte, yte))
+
+    print(axisx[rs.index(max(rs))], max(rs))
+    best_ne = axisx[rs.index(max(rs))]
+    print('n_estimators', best_ne)
+
+    axisx = range(0, 11, 1)
+    rs = []
+    for i in axisx:
+        reg = XGBClassifier(n_estimators=best_ne, random_state=420, eval_metric='auc', use_label_encoder=False,
+                            scale_pos_weight=best_spw,
+                            max_depth=i).fit(xtr, ytr)
+        #     rs.append(cross_val_score(reg,xtr,ytr,cv=cv).mean())
+        rs.append(acc_score(reg, xte, yte))
+
+    print(axisx[rs.index(max(rs))], max(rs))
+    best_maxdepth = axisx[rs.index(max(rs))]
+    print('max_depth', best_maxdepth)
+
+    axisx = range(0, 11, 1)
+    rs = []
+    for i in axisx:
+        reg = XGBClassifier(n_estimators=best_ne, random_state=420, eval_metric='auc', use_label_encoder=False,
+                            scale_pos_weight=best_spw,
+                            max_depth=best_maxdepth, min_child_weight=i).fit(xtr, ytr)
+        #     rs.append(cross_val_score(reg,xtr,ytr,cv=cv).mean())
+        rs.append(acc_score(reg, xte, yte))
+
+    print(axisx[rs.index(max(rs))], max(rs))
+    best_min_child_weight = axisx[rs.index(max(rs))]
+    print('min_child_weight', best_min_child_weight)
+
+    axisx = range(0, 10, 1)
+    rs = []
+    for i in axisx:
+        reg = XGBClassifier(n_estimators=best_ne, random_state=420, eval_metric='auc', use_label_encoder=False,
+                            scale_pos_weight=best_spw,
+                            max_depth=best_maxdepth, min_child_weight=1, gamma=i / 10).fit(xtr, ytr)
+        #     rs.append(cross_val_score(reg,xtr,ytr,cv=cv).mean())
+        rs.append(acc_score(reg, xte, yte))
+
+    print(axisx[rs.index(max(rs))], max(rs))
+    best_gamma = axisx[rs.index(max(rs))] / 10
+    print('gamma', best_gamma)
+
+    axisx = range(0, 11, 1)
+    rs = []
+    for i in axisx:
+        reg = XGBClassifier(n_estimators=best_ne, random_state=420, eval_metric='auc', use_label_encoder=False,
+                            scale_pos_weight=best_spw,
+                            max_depth=best_maxdepth, min_child_weight=best_min_child_weight, gamma=best_gamma,
+                            subsample=i / 10).fit(xtr, ytr)
+        #     rs.append(cross_val_score(reg,xtr,ytr,cv=cv).mean())
+        rs.append(acc_score(reg, xte, yte))
+
+    print(axisx[rs.index(max(rs))], max(rs))
+    best_subsample = axisx[rs.index(max(rs))] / 10
+    print('subsample', best_subsample)
+
+    #colsample_bytree
+    axisx = range(0, 11, 1)
+    rs = []
+    for i in axisx:
+        reg = XGBClassifier(n_estimators=best_ne, random_state=420, eval_metric='auc', use_label_encoder=False,
+                            scale_pos_weight=best_spw,
+                            max_depth=best_maxdepth, min_child_weight=1, gamma=0, subsample=best_subsample,
+                            colsample_bytree=i / 10).fit(xtr, ytr)
+        #     rs.append(cross_val_score(reg,xtr,ytr,cv=cv).mean())
+        rs.append(acc_score(reg, xte, yte))
+
+    print(axisx[rs.index(max(rs))], max(rs))
+    best_colsample_bytree = axisx[rs.index(max(rs))] / 10
+    print('colsample_bytree', best_colsample_bytree)
+
+    #reg_alpha
+    axisx = range(0, 11, 1)
+    rs = []
+    for i in axisx:
+        reg = XGBClassifier(n_estimators=best_ne, random_state=420, eval_metric='auc', use_label_encoder=False,
+                            scale_pos_weight=best_spw,
+                            max_depth=best_maxdepth, min_child_weight=1, gamma=0, subsample=best_subsample,
+                            colsample_bytree=best_colsample_bytree, reg_alpha=i / 10).fit(xtr, ytr)
+        #     rs.append(cross_val_score(reg,xtr,ytr,cv=cv).mean())
+        rs.append(acc_score(reg, xte, yte))
+
+    print(axisx[rs.index(max(rs))], max(rs))
+    best_reg_alpha = axisx[rs.index(max(rs))] / 10
+    print('reg_alpha', best_reg_alpha)
+
+    #reg_lambda
+    axisx = range(0, 11, 1)
+    rs = []
+    for i in axisx:
+        reg = XGBClassifier(n_estimators=best_ne, random_state=420, eval_metric='auc', use_label_encoder=False,
+                            scale_pos_weight=best_spw,
+                            max_depth=best_maxdepth, min_child_weight=1, gamma=0, subsample=best_subsample,
+                            colsample_bytree=best_colsample_bytree,
+                            reg_alpha=best_reg_alpha, reg_lambda=i / 10).fit(xtr, ytr)
+        #     rs.append(cross_val_score(reg,xtr,ytr,cv=cv).mean())
+        rs.append(acc_score(reg, xte, yte))
+
+    print(axisx[rs.index(max(rs))], max(rs))
+    best_reg_lambda = axisx[rs.index(max(rs))] / 10
+    print('reg_lambda', best_reg_lambda)
+
+    #learning_rate
+    axisx = range(0, 11, 1)
+    rs = []
+    for i in axisx:
+        reg = XGBClassifier(n_estimators=best_ne, random_state=420, eval_metric='auc', use_label_encoder=False,
+                            scale_pos_weight=best_spw,
+                            max_depth=best_maxdepth, min_child_weight=1, gamma=0, subsample=best_subsample,
+                            colsample_bytree=best_colsample_bytree,
+                            reg_alpha=best_reg_alpha, reg_lambda=best_reg_lambda, learning_rate=i / 10).fit(xtr, ytr)
+        #     rs.append(cross_val_score(reg,xtr,ytr,cv=cv).mean())
+        rs.append(acc_score(reg, xte, yte))
+
+    print(axisx[rs.index(max(rs))], max(rs))
+    best_learning_rate = axisx[rs.index(max(rs))] / 10
+    print('learning_rate', best_learning_rate)
+
+    return XGBClassifier(n_estimators=best_ne, random_state=420, eval_metric='auc', use_label_encoder=False,
+                         scale_pos_weight=best_spw,
+                         max_depth=best_maxdepth, min_child_weight=1, gamma=0, subsample=best_subsample,
+                         colsample_bytree=best_colsample_bytree,
+                         reg_alpha=best_reg_alpha, reg_lambda=best_reg_lambda, learning_rate=best_learning_rate)
 # 1 LR
 def LR_gs(X_train, y_train):
     # LR
@@ -107,6 +259,7 @@ def SVC_gs(X_train, y_train):
     SVC_param = {
         'C': [0.5, 0.7, 0.9, 1, 5, 10, 15, 20, 25, 30, 50],
         'kernel': ['rfb', 'poly', 'sigmod', 'linear']
+        'kernel': ['rbf', 'poly', 'sigmoid', 'linear']
     }
 
     SVC_gs = GridSearchCV(SVC(probability=True), param_grid=SVC_param, n_jobs=-1, scoring='roc_auc')
