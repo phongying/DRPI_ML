@@ -258,7 +258,6 @@ def KNN_gs(X_train, y_train):
 def SVC_gs(X_train, y_train):
     SVC_param = {
         'C': [0.5, 0.7, 0.9, 1, 5, 10, 15, 20, 25, 30, 50],
-        'kernel': ['rfb', 'poly', 'sigmod', 'linear']
         'kernel': ['rbf', 'poly', 'sigmoid', 'linear']
     }
 
